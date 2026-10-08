@@ -1,0 +1,15 @@
+# GitHub App manifest. Probot's setup page (shown on first `npm run dev`)
+# uses this to register the app with the right permissions and events.
+name: SecondPass
+description: AI code review for pull requests. Posts inline comments on likely bugs.
+url: https://github.com/saeedbeingsaeed/secondpass
+public: false
+default_events:
+  - pull_request
+default_permissions:
+  # Read diffs, file contents and .secondpass.yml
+  contents: read
+  # Post review comments and the summary comment
+  pull_requests: write
+  issues: write
+  metadata: read
