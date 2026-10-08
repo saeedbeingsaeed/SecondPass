@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseReviewResponse } from "../src/review/schema.js";
+import { parseCritiqueResponse, parseReviewResponse } from "../src/review/schema.js";
 
 const good = {
   file: "a.ts",
@@ -13,7 +13,7 @@ const good = {
 describe("parseReviewResponse", () => {
   it("accepts valid output", () => {
     const res = parseReviewResponse(JSON.stringify({ summary: "ok", findings: [good] }));
-    expect(res).toEqual({ ok: true, summary: "ok", findings: [good], invalidCount: 0 });
+    expect(res).toEqual({ ok: true, value: { summary: "ok", findings: [good], invalidCount: 0 } });
   });
 
   it("strips markdown code fences", () => {
@@ -43,6 +43,27 @@ describe("parseReviewResponse", () => {
       { file: "a.ts" },
     ];
     const res = parseReviewResponse(JSON.stringify({ summary: "", findings: [good, ...bad] }));
-    expect(res).toMatchObject({ ok: true, findings: [good], invalidCount: bad.length });
+    expect(res).toMatchObject({ ok: true, value: { findings: [good], invalidCount: bad.length } });
+  });
+});
+
+describe("parseCritiqueResponse", () => {
+  it("returns valid verdicts and drops malformed ones", () => {
+    const res = parseCritiqueResponse(
+      JSON.stringify({
+        verdicts: [
+          { id: 1, keep: true, confidence: 0.8, reason: "real" },
+          { id: 2, keep: "yes", confidence: 0.8, reason: "bad type" },
+        ],
+      }),
+    );
+    expect(res).toEqual({
+      ok: true,
+      value: [{ id: 1, keep: true, confidence: 0.8, reason: "real" }],
+    });
+  });
+
+  it("rejects a reply without a verdicts array", () => {
+    expect(parseCritiqueResponse(JSON.stringify({ findings: [] })).ok).toBe(false);
   });
 });

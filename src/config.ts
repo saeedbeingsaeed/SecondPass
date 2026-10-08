@@ -10,6 +10,14 @@ const EnvSchema = z.object({
   LLM_MIN_INTERVAL_MS: z.coerce.number().int().min(0).default(13_000),
   LLM_MAX_RETRIES: z.coerce.number().int().min(0).default(4),
   LLM_TIMEOUT_MS: z.coerce.number().int().min(1_000).default(120_000),
+  // Code sent to the model in one request. Keep it under the provider's tokens/minute limit.
+  LLM_MAX_TOKENS_PER_CALL: z.coerce.number().int().min(1_000).default(15_000),
+
+  // Large-PR limits. Files past these are skipped and listed in the summary.
+  MAX_FILES_PER_REVIEW: z.coerce.number().int().min(1).default(25),
+  MAX_INPUT_TOKENS_PER_REVIEW: z.coerce.number().int().min(1_000).default(60_000),
+  // Pass 2: a second LLM call that critiques each finding and drops weak ones.
+  REVIEW_SECOND_PASS: z.stringbool().default(true),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

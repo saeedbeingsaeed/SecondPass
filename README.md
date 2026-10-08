@@ -3,7 +3,7 @@
 An AI code review bot that runs as a GitHub App. When a pull request is opened or updated,
 SecondPass reads the diff, asks an LLM to review it, and posts the results on the PR.
 
-> Work in progress. Milestone 2: structured findings posted as inline comments.
+> Work in progress. Milestone 3: two-pass filtering, repo config, large-PR handling and deduplication.
 
 ## Local setup
 
@@ -33,6 +33,24 @@ Requirements: Node.js 20.18+ and a GitHub account. Everything runs on free tiers
 
 5. **Restart** with `npm run dev`, open a pull request in that repo, and SecondPass
    posts a summary comment within a minute.
+
+## Per-repo configuration
+
+Add `.secondpass.yml` to the root of the repo's **default branch** (it is not read from PR
+branches, so a PR cannot switch off its own review). Every key is optional:
+
+```yaml
+# Glob patterns for paths to skip, in addition to lockfiles, generated files and binaries.
+ignore:
+  - "docs/**"
+  - "*.snap"
+# Findings below this confidence (0-1) are not posted. Default 0.6.
+confidenceThreshold: 0.7
+# Which kinds of findings to post. Default: bug, security, performance (style is off).
+severities: [bug, security, performance]
+```
+
+If the file is invalid, SecondPass uses the defaults and says so in the summary comment.
 
 ## Scripts
 

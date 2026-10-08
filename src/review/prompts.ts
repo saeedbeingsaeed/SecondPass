@@ -85,3 +85,64 @@ export function buildReviewPrompt(title: string, renderedFiles: string[]): strin
 export function invalidOutputFollowUp(error: string): string {
   return `\n\nYour previous reply could not be used: ${error}\nReply again with ONLY the JSON object described above.`;
 }
+
+export const CRITIQUE_SYSTEM_PROMPT = `You are a strict senior engineer double-checking another reviewer's comments
+on a pull request before they are posted. Developers lose trust in a review bot that posts
+wrong or trivial comments, so be skeptical.
+
+For each finding, look at the code and decide whether it is a real, specific problem worth a
+reviewer's time. Drop it (keep: false) if any of these are true:
+- The claim is not actually true for the code shown, or depends on code you cannot see.
+- It is already handled nearby (a check, a guard, a try/catch, a type that rules it out).
+- It is speculative ("might", "could potentially") without a concrete failing case.
+- It is a style preference, naming opinion or missing comment.
+Keep it only if you can name the input or situation that makes it fail.
+
+Set confidence to how sure you are that the finding is correct and important (0.0 to 1.0).
+
+Reply with ONLY a JSON object in this exact shape, with one verdict per finding id:
+{ "verdicts": [ { "id": 1, "keep": true, "confidence": 0.8, "reason": "one short sentence" } ] }`;
+
+// Lines around a finding, numbered and marked like in pass 1.
+export function codeSnippet(
+  parsed: ParsedPatch,
+  content: string | undefined,
+  line: number,
+  radius = 8,
+): string {
+  const fileLines = content?.split("\n");
+  if (fileLines?.at(-1) === "") fileLines.pop();
+  const out: string[] = [];
+  for (let n = Math.max(1, line - radius); n <= line + radius; n++) {
+    const text = fileLines ? fileLines[n - 1] : parsed.lines.get(n);
+    if (text === undefined) continue;
+    out.push(...removedLines(parsed, n), numbered(n, n === line ? ">" : marker(parsed, n), text));
+  }
+  return out.join("\n");
+}
+
+export interface CritiqueItem {
+  id: number;
+  file: string;
+  line: number;
+  severity: string;
+  confidence: number;
+  explanation: string;
+  suggestedFix: string;
+  snippet: string;
+}
+
+export function buildCritiquePrompt(title: string, items: CritiqueItem[]): string {
+  const blocks = items.map((item) =>
+    [
+      `## Finding ${item.id}: ${item.file} line ${item.line} [${item.severity}, confidence ${item.confidence}]`,
+      `Claim: ${item.explanation}`,
+      item.suggestedFix ? `Suggested fix: ${item.suggestedFix}` : "",
+      `Code (">" marks the line the finding is on):`,
+      item.snippet,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+  return `Pull request title: ${title}\n\n${blocks.join("\n\n")}`;
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parsePatch } from "../src/review/diff.js";
-import { renderFile } from "../src/review/prompts.js";
+import { codeSnippet, renderFile } from "../src/review/prompts.js";
 
 describe("renderFile", () => {
   const patch = ["@@ -2,3 +2,3 @@", " b", "-c", "+C", " d"].join("\n");
@@ -29,5 +29,16 @@ describe("renderFile", () => {
   it("shows a gap marker between separate hunks", () => {
     const two = parsePatch(["@@ -1 +1 @@", "-x", "+X", "@@ -10 +10 @@", "-y", "+Y"].join("\n"));
     expect(renderFile("g.ts", two)).toContain("  ...");
+  });
+});
+
+describe("codeSnippet", () => {
+  it("shows lines around the finding, marks it, and stops at the end of the file", () => {
+    const parsed = parsePatch(["@@ -1,2 +1,2 @@", " a", "-b", "+B"].join("\n"));
+    expect(codeSnippet(parsed, "a\nB\n", 2, 3).split("\n")).toEqual([
+      "    1 ~ | a",
+      "      - | b",
+      "    2 > | B",
+    ]);
   });
 });

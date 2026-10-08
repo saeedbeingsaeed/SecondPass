@@ -49,3 +49,48 @@ export async function getFileContent(
     return undefined;
   }
 }
+
+export async function getHeadSha(
+  octokit: Octokit,
+  pr: PullRequestRef,
+): Promise<string | undefined> {
+  const { data } = await octokit.rest.pulls.get({
+    owner: pr.owner,
+    repo: pr.repo,
+    pull_number: pr.number,
+  });
+  return data.state === "open" ? data.head.sha : undefined;
+}
+
+// Paths changed between two commits, or undefined if GitHub can't compare
+// them (for example after a force-push removed the old commit).
+export async function changedSince(
+  octokit: Octokit,
+  pr: PullRequestRef,
+  baseSha: string,
+): Promise<Set<string> | undefined> {
+  try {
+    const { data } = await octokit.rest.repos.compareCommitsWithBasehead({
+      owner: pr.owner,
+      repo: pr.repo,
+      basehead: `${baseSha}...${pr.headSha}`,
+      per_page: 100,
+    });
+    // The compare API lists at most 300 files; past that, review everything.
+    if (!data.files || data.files.length >= 300) return undefined;
+    return new Set(data.files.map((f) => f.filename));
+  } catch {
+    return undefined;
+  }
+}
+
+// Reads .secondpass.yml from the default branch. Reading it from the PR
+// branch would let a PR switch off its own review.
+export async function getRepoConfigFile(octokit: Octokit, pr: PullRequestRef): Promise<unknown> {
+  const { config } = await octokit.config.get({
+    owner: pr.owner,
+    repo: pr.repo,
+    path: ".secondpass.yml",
+  });
+  return config;
+}
