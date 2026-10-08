@@ -3,6 +3,8 @@ export interface LLMRequest {
   prompt: string;
   // Ask the model for a JSON object instead of free text.
   json?: boolean;
+  // Called before each retry, so the caller can log it against its own PR.
+  onRetry?: (attempt: number, delayMs: number, error: unknown) => void;
 }
 
 export interface LLMResponse {

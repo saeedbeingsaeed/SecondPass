@@ -43,6 +43,7 @@ export interface ReviewOptions {
   maxInputTokens: number;
   // Budget for code in a single request (keep under the provider's tokens/minute).
   maxTokensPerCall: number;
+  onRetry?: (attempt: number, delayMs: number, error: unknown) => void;
 }
 
 export interface ReviewFinding extends Finding {
@@ -151,12 +152,18 @@ async function completeJson<T>(
   prompt: string,
   parse: (text: string) => ParseResult<T>,
   stats: ReviewStats,
+  onRetry?: ReviewOptions["onRetry"],
 ): Promise<T | undefined> {
   let followUp = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     let text: string;
     try {
-      const response = await llm.complete({ system, prompt: prompt + followUp, json: true });
+      const response = await llm.complete({
+        system,
+        prompt: prompt + followUp,
+        json: true,
+        onRetry,
+      });
       stats.llmCalls++;
       stats.inputTokens += response.inputTokens;
       stats.outputTokens += response.outputTokens;
@@ -184,6 +191,7 @@ async function critique(
   findings: ReviewFinding[],
   files: Map<string, PreparedFile>,
   stats: ReviewStats,
+  onRetry?: ReviewOptions["onRetry"],
 ): Promise<ReviewFinding[]> {
   const kept: ReviewFinding[] = [];
   for (let start = 0; start < findings.length; start += CRITIQUE_BATCH) {
@@ -198,6 +206,7 @@ async function critique(
       buildCritiquePrompt(title, items),
       parseCritiqueResponse,
       stats,
+      onRetry,
     );
     if (!verdicts) {
       // Pass 2 is a filter; if it is unavailable, fall back to pass 1 results
@@ -261,6 +270,7 @@ export async function runReview(
       ),
       parseReviewResponse,
       stats,
+      options.onRetry,
     );
     if (!result) {
       stats.failedFiles.push(...batch.map((f) => f.path));
@@ -283,7 +293,7 @@ export async function runReview(
   // Pass 2: critique each finding and drop what can't be justified.
   if (options.secondPass && findings.length > 0) {
     const before = findings.length;
-    findings = await critique(llm, input.title, findings, prepared, stats);
+    findings = await critique(llm, input.title, findings, prepared, stats, options.onRetry);
     stats.droppedSecondPass = before - findings.length;
   }
 

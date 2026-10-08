@@ -1,21 +1,11 @@
-import { getEnv, requireEnv, type Env } from "../config.js";
+import { getEnv, providerSettings, type ProviderName } from "../config.js";
 import { GeminiProvider } from "./gemini.js";
+import { GroqProvider } from "./groq.js";
 import { RateLimitedQueue } from "./queue.js";
 import { withRetry } from "./retry.js";
 import type { LLMProvider, LLMRequest } from "./types.js";
 
 export type { LLMProvider, LLMRequest, LLMResponse } from "./types.js";
-
-function createRawProvider(env: Env): LLMProvider {
-  switch (env.LLM_PROVIDER) {
-    case "gemini":
-      return new GeminiProvider(
-        requireEnv(env, "GEMINI_API_KEY"),
-        requireEnv(env, "GEMINI_MODEL"),
-        env.LLM_TIMEOUT_MS,
-      );
-  }
-}
 
 // Wraps a provider so every attempt (including retries) waits its turn in the
 // shared queue, and rate-limit/server errors are retried with backoff.
@@ -23,25 +13,43 @@ export function withRateLimits(
   provider: LLMProvider,
   queue: RateLimitedQueue,
   maxRetries: number,
-  onRetry?: (attempt: number, delayMs: number, error: unknown) => void,
 ): LLMProvider {
   return {
     name: provider.name,
     model: provider.model,
     complete: (request: LLMRequest) =>
-      withRetry(() => queue.run(() => provider.complete(request)), { maxRetries, onRetry }),
+      withRetry(() => queue.run(() => provider.complete(request)), {
+        maxRetries,
+        onRetry: request.onRetry,
+      }),
   };
 }
 
-let shared: LLMProvider | undefined;
+export interface ConfiguredLLM {
+  llm: LLMProvider;
+  maxTokensPerCall: number;
+}
 
-export function getLLM(
-  onRetry?: (attempt: number, delayMs: number, error: unknown) => void,
-): LLMProvider {
-  if (!shared) {
-    const env = getEnv();
-    const queue = new RateLimitedQueue(env.LLM_MIN_INTERVAL_MS);
-    shared = withRateLimits(createRawProvider(env), queue, env.LLM_MAX_RETRIES, onRetry);
+// One instance (and so one rate-limit queue) per provider for the whole
+// process, because free-tier limits apply to the account, not to a review.
+const instances = new Map<ProviderName, ConfiguredLLM>();
+
+export function getLLM(name?: ProviderName): ConfiguredLLM {
+  const env = getEnv();
+  const provider = name ?? env.LLM_PROVIDER;
+  let instance = instances.get(provider);
+  if (!instance) {
+    const settings = providerSettings(env, provider);
+    const raw =
+      provider === "gemini"
+        ? new GeminiProvider(settings.apiKey, settings.model, env.LLM_TIMEOUT_MS)
+        : new GroqProvider(settings.apiKey, settings.model, env.LLM_TIMEOUT_MS);
+    const queue = new RateLimitedQueue(settings.minIntervalMs);
+    instance = {
+      llm: withRateLimits(raw, queue, env.LLM_MAX_RETRIES),
+      maxTokensPerCall: settings.maxTokensPerCall,
+    };
+    instances.set(provider, instance);
   }
-  return shared;
+  return instance;
 }

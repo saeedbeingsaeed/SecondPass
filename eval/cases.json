@@ -1,0 +1,20 @@
+[
+  {
+    "repo": "saeedbeingsaeed/secondpass-eval-fixtures",
+    "pr": 1,
+    "description": "Off-by-one: page numbers start at 1 but the slice starts at page * pageSize, so page 1 skips the first page of items.",
+    "bug": { "file": "src/pagination.js", "startLine": 11, "endLine": 12 }
+  },
+  {
+    "repo": "saeedbeingsaeed/secondpass-eval-fixtures",
+    "pr": 2,
+    "description": "SQL injection: the search term is concatenated into the query instead of passed as a parameter.",
+    "bug": { "file": "src/users.js", "startLine": 14, "endLine": 16 }
+  },
+  {
+    "repo": "saeedbeingsaeed/secondpass-eval-fixtures",
+    "pr": 3,
+    "description": "Async bug: forEach does not await async callbacks, so cartTotal returns 0 before any price is fetched.",
+    "bug": { "file": "src/cart.js", "startLine": 26, "endLine": 30 }
+  }
+]
