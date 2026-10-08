@@ -3,7 +3,7 @@
 An AI code review bot that runs as a GitHub App. When a pull request is opened or updated,
 SecondPass reads the diff, asks an LLM to review it, and posts the results on the PR.
 
-> Work in progress. Milestone 1: webhook handling and a summary comment.
+> Work in progress. Milestone 2: structured findings posted as inline comments.
 
 ## Local setup
 

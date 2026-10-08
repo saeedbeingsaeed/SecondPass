@@ -1,9 +1,11 @@
 import type { Context, Probot } from "probot";
 import { upsertSummaryComment } from "./github/comments.js";
-import { listChangedFiles } from "./github/pr.js";
+import { getFileContent, listChangedFiles } from "./github/pr.js";
+import { postInlineReview } from "./github/review.js";
 import type { Octokit, PullRequestRef } from "./github/types.js";
 import { getLLM } from "./llm/index.js";
-import { formatSummaryComment, summarizePullRequest } from "./review/summary.js";
+import { formatSummaryComment } from "./review/format.js";
+import { runReview, type FileForReview } from "./review/pipeline.js";
 
 type Logger = Probot["log"];
 
@@ -17,29 +19,43 @@ async function reviewPullRequest(
   title: string,
   log: Logger,
 ): Promise<void> {
+  const started = Date.now();
   const llm = getLLM((attempt, delayMs, error) =>
     log.warn({ attempt, delayMs, error: (error as Error).message }, "LLM call failed, retrying"),
   );
-  const files = await listChangedFiles(octokit, pr);
-  log.info({ files: files.length }, "Fetched changed files");
 
-  let body: string;
-  try {
-    const result = await summarizePullRequest(llm, title, files);
-    body = formatSummaryComment(result, {
-      headSha: pr.headSha,
-      model: llm.model,
-      fileCount: files.length,
-    });
-    log.info(
-      { inputTokens: result.inputTokens, outputTokens: result.outputTokens, ms: result.latencyMs },
-      "Summary generated",
-    );
-  } catch (error) {
-    log.error({ error: (error as Error).message }, "Review failed");
-    body = `### SecondPass review\n\nSecondPass could not review commit ${pr.headSha.slice(0, 7)} (the model was unavailable). Push a new commit to try again.`;
+  const changed = await listChangedFiles(octokit, pr);
+  const files: FileForReview[] = [];
+  for (const file of changed) {
+    // No patch means a binary or a diff too large for GitHub to show.
+    if (!file.patch || file.status === "removed") continue;
+    const content = await getFileContent(octokit, pr, file.filename);
+    files.push({ path: file.filename, patch: file.patch, content });
   }
+  log.info({ changed: changed.length, reviewing: files.length }, "Fetched changed files");
+
+  const output = await runReview(llm, { title, files });
+  const posted = await postInlineReview(octokit, pr, output.findings);
+  if (!posted) log.warn("GitHub rejected inline comments; listing them in the summary instead");
+
+  const body = formatSummaryComment(output, {
+    headSha: pr.headSha,
+    model: llm.model,
+    fileCount: files.length,
+    durationMs: Date.now() - started,
+    unposted: posted ? undefined : output.findings,
+  });
   await upsertSummaryComment(octokit, pr, body);
+  // Counts only: never log code, prompts or model output.
+  log.info(
+    {
+      findings: output.findings.length,
+      ...output.stats,
+      failedFiles: output.stats.failedFiles.length,
+      ms: Date.now() - started,
+    },
+    "Review posted",
+  );
 }
 
 export default function app(probot: Probot): void {
