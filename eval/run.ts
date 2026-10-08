@@ -86,8 +86,10 @@ async function runCase(
       severities: c.config.severities,
       maxInputTokens: env.MAX_INPUT_TOKENS_PER_REVIEW,
       maxTokensPerCall,
-      onRetry: (attempt, delayMs) =>
-        console.log(`    retry ${attempt} in ${(delayMs / 1000).toFixed(0)}s (rate limited)`),
+      onRetry: (attempt, delayMs, error) =>
+        console.log(
+          `    retry ${attempt} in ${(delayMs / 1000).toFixed(0)}s: ${(error as Error).message.slice(0, 80)}`,
+        ),
     },
   );
   return {
