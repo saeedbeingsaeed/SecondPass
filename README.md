@@ -354,10 +354,3 @@ render.yaml            Render Blueprint
 - The model sees changed files, not the whole repository, so it cannot check callers in
   other files.
 - `.secondpass.yml` changes made in a PR only take effect once merged.
-
-## How it was built
-
-I used [Claude Code](https://claude.com/claude-code), Anthropic's AI coding assistant, to
-help write the code and tests. I set the requirements and the milestone plan, reviewed each
-milestone, tested the bot on real pull requests, ran the evaluation, deployed it, and
-signed off on the design decisions described above.
