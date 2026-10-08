@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+eval/results
+.env
+*.pem
+.git
+.github
+test
