@@ -37,6 +37,12 @@ describe("withRetry", () => {
     expect(fn).toHaveBeenCalledTimes(3);
   });
 
+  it("gives up at once when the provider asks for a wait longer than the max (daily quota)", async () => {
+    const fn = vi.fn().mockRejectedValue(new LLMError("quota", 429, 20 * 60 * 60 * 1000));
+    await expect(withRetry(fn, { maxRetries: 4, sleep: noSleep })).rejects.toThrow("quota");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the provider's retry hint as the delay", async () => {
     const sleep = vi.fn(noSleep);
     const fn = vi

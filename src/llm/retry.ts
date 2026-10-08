@@ -29,6 +29,9 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions):
     } catch (error) {
       if (attempt >= maxRetries || !isRetryable(error)) throw error;
       const hint = error instanceof LLMError ? error.retryAfterMs : undefined;
+      // The provider wants us to wait longer than we ever would (e.g. "retry in
+      // 20h" when the daily free quota is used up). Retrying now is pointless.
+      if (hint !== undefined && hint > maxDelayMs) throw error;
       const delay = backoffDelay(attempt, baseDelayMs, maxDelayMs, hint);
       options.onRetry?.(attempt + 1, delay, error);
       await wait(delay);
