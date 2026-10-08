@@ -36,9 +36,20 @@ export type ProviderName = Env["LLM_PROVIDER"];
 
 let cached: Env | undefined;
 
+// Treats `KEY=` (empty, as in .env.example) the same as a missing key, so
+// optional settings can be left blank.
+export function parseEnv(source: NodeJS.ProcessEnv): Env {
+  const set = Object.fromEntries(Object.entries(source).filter(([, v]) => v !== ""));
+  const result = EnvSchema.safeParse(set);
+  if (!result.success) {
+    throw new Error(`Invalid settings in .env:\n${z.prettifyError(result.error)}`);
+  }
+  return result.data;
+}
+
 // Parsed lazily so Probot's first-run setup page works before any keys exist.
 export function getEnv(): Env {
-  cached ??= EnvSchema.parse(process.env);
+  cached ??= parseEnv(process.env);
   return cached;
 }
 

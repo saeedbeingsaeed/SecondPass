@@ -1,5 +1,6 @@
 import type { Context, Probot } from "probot";
 import type { PullRequestRef } from "./github/types.js";
+import { getLLM } from "./llm/index.js";
 import { reviewPullRequest } from "./review-job.js";
 
 // The tail of each PR's job chain. Jobs for the same PR run one after another,
@@ -21,6 +22,10 @@ export default function app(probot: Probot): void {
   if (!process.env.WEBHOOK_SECRET) {
     throw new Error("WEBHOOK_SECRET is not set. See .env.example.");
   }
+  // Check settings and the chosen provider's key and model now, so a mistake
+  // in .env stops the app at startup instead of failing every review.
+  const { llm } = getLLM();
+  probot.log.info(`Using ${llm.name} (${llm.model})`);
 
   probot.on(
     ["pull_request.opened", "pull_request.synchronize", "pull_request.reopened"],
