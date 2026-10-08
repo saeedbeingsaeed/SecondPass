@@ -1,6 +1,6 @@
 # SecondPass
 
-[![CI](https://github.com/saeedbeingsaeed/secondpass/actions/workflows/ci.yml/badge.svg)](https://github.com/saeedbeingsaeed/secondpass/actions/workflows/ci.yml)
+[![CI](https://github.com/saeedbeingsaeed/SecondPass/actions/workflows/ci.yml/badge.svg)](https://github.com/saeedbeingsaeed/SecondPass/actions/workflows/ci.yml)
 
 An AI code reviewer that runs as a GitHub App. When a pull request is opened or updated,
 SecondPass reads the diff and the full changed files, asks an LLM to review them, has a
@@ -105,13 +105,13 @@ What this shows, and what it does not:
 
 ## Local setup
 
-You need Node.js 20.18+, a GitHub account and a Google account. Nothing here needs a card.
+You need Node.js 22.12+ (Node 20 reached end-of-life in April 2026, and Probot's dependencies now require 22), a GitHub account and a Google account. Nothing here needs a card.
 
 1. **Install**
 
    ```sh
-   gh repo clone saeedbeingsaeed/secondpass   # or git clone
-   cd secondpass
+   gh repo clone saeedbeingsaeed/SecondPass   # or git clone
+   cd SecondPass
    npm install
    cp .env.example .env
    ```
