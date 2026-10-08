@@ -201,7 +201,8 @@ The repo includes a [`Dockerfile`](Dockerfile) and a Render Blueprint
      Render accepts multi-line values.
    - Do **not** set `WEBHOOK_PROXY_URL` in production; smee is only for local development.
 4. Wait for the deploy to go live, then note the URL, e.g. `https://secondpass-xxxx.onrender.com`.
-   Opening `https://secondpass-xxxx.onrender.com/ping` should return `PONG`.
+   Opening that URL in a browser shows "SecondPass is running", and `/ping` returns `PONG`.
+   If the deploy shows **Failed**, the **Logs** tab says why (usually a missing variable).
 5. In GitHub → Settings → Developer settings → GitHub Apps → your app → **General**, set
    **Webhook URL** to `https://secondpass-xxxx.onrender.com/api/github/webhooks` and save.
 6. Stop your local `npm run dev` (otherwise both would review the same PRs) and open a PR.
